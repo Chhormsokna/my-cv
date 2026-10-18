@@ -46,20 +46,25 @@ export default function App() {
   useEffect(() => savePortfolio(portfolio), [portfolio]);
   useEffect(() => saveCv(cv), [cv]);
   useEffect(() => {
-    const candidate = location.pathname.slice(1) as Page;
-    if (["dashboard","designs","add","categories","portfolio","cv","favorites","trash","settings"].includes(candidate)) setPage(candidate);
+    const cleanPath = location.pathname.replace(/\/+$/, "");
+    if (cleanPath === "/portfolio-manager" || cleanPath === "/my-portfolio") {
+      setPage("portfolio");
+      return;
+    }
+    const candidate = cleanPath.slice(1) as Page;
+    if (["dashboard","designs","add","categories","cv","favorites","trash","settings"].includes(candidate)) setPage(candidate);
   }, [location.pathname]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(undefined), 3200); return () => clearTimeout(timer); }, [toast]);
 
   const notify = (message: string, type: Toast["type"] = "success") => setToast({ message, type });
-  const navigate = (next: Page) => { setPage(next); routerNavigate(`/${next}`); setEditing(undefined); if (next !== "designs") setSearch(""); };
-  const activeDesigns = designs.filter(item => !item.deleted);
+  const navigate = (next: Page) => { setPage(next); routerNavigate(next === "portfolio" ? "/portfolio-manager" : `/${next}`); setEditing(undefined); if (next !== "designs") setSearch(""); };
+  const activeDesigns = (designs || []).filter(item => !item.deleted);
 
   const filtered = useMemo(() => {
     const source = page === "favorites" ? activeDesigns.filter(d => d.favorite) : activeDesigns;
     const query = search.toLowerCase().trim();
-    return source.filter(d => (!query || d.title.toLowerCase().includes(query) || d.tags.some(t => t.toLowerCase().includes(query))) && (categoryFilter === "All" || d.category === categoryFilter) && (statusFilter === "All" || d.status === statusFilter)).sort((a, b) => sort === "oldest" ? a.date.localeCompare(b.date) : sort === "title" ? a.title.localeCompare(b.title) : b.date.localeCompare(a.date));
-  }, [designs, page, search, categoryFilter, statusFilter, sort]);
+    return source.filter(d => (!query || d.title?.toLowerCase().includes(query) || (d.tags || []).some(t => t?.toLowerCase().includes(query))) && (categoryFilter === "All" || d.category === categoryFilter) && (statusFilter === "All" || d.status === statusFilter)).sort((a, b) => sort === "oldest" ? (a.date || "").localeCompare(b.date || "") : sort === "title" ? (a.title || "").localeCompare(b.title || "") : (b.date || "").localeCompare(a.date || ""));
+  }, [designs, page, search, categoryFilter, statusFilter, sort, activeDesigns]);
 
   const saveProject = async (data: DesignPayload, image?: File) => {
     try {
@@ -91,7 +96,8 @@ export default function App() {
     {filtered.length ? <div className={`design-grid ${view === "list" ? "list-view" : ""}`}>{filtered.map(design => <DesignCard key={design.id} design={design} view={view} onView={() => setViewing(design)} onEdit={() => editDesign(design)} onDelete={() => moveToTrash(design)} onFavorite={() => toggleFavorite(design.id)} />)}</div> : <Empty icon={page === "favorites" ? "heart" : "images"} title={page === "favorites" ? "No favorites yet" : "No designs found"} text={search || categoryFilter !== "All" || statusFilter !== "All" ? "Try clearing your search or filters." : "Add your first project to start building your creative library."} action={() => navigate("add")} />}
   </>;
 
-  if (location.pathname === "/portfolio") return <PublicPortfolio data={portfolio} designs={designs} settings={settings} cv={cv} preview={new URLSearchParams(location.search).has("preview")} onExit={() => navigate("portfolio")} />;
+  const cleanPath = location.pathname.replace(/\/+$/, "");
+  if (cleanPath === "/portfolio") return <PublicPortfolio data={portfolio} designs={designs} settings={settings} cv={cv} preview={new URLSearchParams(location.search).has("preview")} onExit={() => navigate("portfolio")} />;
 
   return <div className="app-shell">
     <Sidebar page={page} open={sidebar} onNavigate={navigate} onClose={() => setSidebar(false)} />
@@ -119,8 +125,8 @@ function PageTitle({ eyebrow, title, intro, action }: { eyebrow: string; title: 
 }
 
 function Dashboard({ designs, categories, settings, cv, onAdd, onView, onAll, onCv, onPortfolio, onPreview }: { designs: Design[]; categories: string[]; settings: Settings; cv: CvData; onAdd: () => void; onView: (d: Design) => void; onAll: () => void; onCv:()=>void; onPortfolio:()=>void; onPreview:()=>void }) {
-  const recent = [...designs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 4);
-  const first = settings.name.split(" ")[0];
+  const recent = [...designs].sort((a,b) => (b.date || "").localeCompare(a.date || "")).slice(0, 4);
+  const first = (settings.name || "Designer").split(" ")[0] || "Designer";
   return <><PageTitle eyebrow="CREATIVE OVERVIEW" title={`Good morning, ${first}.`} intro="Here is what is happening across your portfolio today." action={<button className="btn btn-primary" onClick={onAdd}><i className="bi bi-plus-lg me-2" />New project</button>} />
     <div className="stats-grid six"><StatCard label="Total designs" value={designs.length} icon="layers" tone="purple" detail="All active projects" /><StatCard label="Published" value={designs.filter(d => d.status === "Published").length} icon="globe2" tone="blue" detail="Visible work" /><StatCard label="Drafts" value={designs.filter(d => d.status === "Draft").length} icon="file-earmark" tone="orange" detail="Waiting for review" /><StatCard label="Categories" value={categories.length} icon="tags" tone="green" detail="Organized collections" /><StatCard label="Portfolio projects" value={designs.filter(d=>d.public&&d.status==="Published").length} icon="person-workspace" tone="purple" detail="Publicly visible" /><StatCard label="CV status" value={cv.fileId?1:0} icon="file-earmark-person" tone="blue" detail={cv.fileId?"File uploaded":"Generated profile ready"} /></div>
     <div className="quick-actions"><button onClick={onAdd}><i className="bi bi-plus-square"/><span><b>Add new design</b><small>Upload creative work</small></span></button><button onClick={onCv}><i className="bi bi-file-earmark-arrow-up"/><span><b>Upload CV</b><small>Manage your resume</small></span></button><button onClick={onPortfolio}><i className="bi bi-layout-text-window"/><span><b>Edit my portfolio</b><small>Update public content</small></span></button><button onClick={onPreview}><i className="bi bi-box-arrow-up-right"/><span><b>Preview portfolio</b><small>See the visitor view</small></span></button></div>
@@ -131,7 +137,8 @@ function Dashboard({ designs, categories, settings, cv, onAdd, onView, onAll, on
 
 function RecentRow({ design, onView }: { design: Design; onView: () => void }) {
   const image = useImageUrl(design.imageId, design.sampleImage);
-  return <button className="recent-row" onClick={onView}><span className="project-cell"><img src={image} alt="" /><b>{design.title}<small>{design.tags.slice(0,2).map(t => `#${t}`).join("  ")}</small></b></span><span>{design.category}</span><span><b className={`status-dot ${design.status.toLowerCase()}`}>{design.status}</b></span><span>{new Date(design.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span><span><i className="bi bi-arrow-up-right" /></span></button>;
+  const formattedDate = design.date ? new Date(design.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+  return <button className="recent-row" onClick={onView}><span className="project-cell"><img src={image} alt="" /><b>{design.title}<small>{(design.tags || []).slice(0,2).map(t => `#${t}`).join("  ")}</small></b></span><span>{design.category}</span><span><b className={`status-dot ${design.status.toLowerCase()}`}>{design.status}</b></span><span>{formattedDate}</span><span><i className="bi bi-arrow-up-right" /></span></button>;
 }
 
 function Categories({ categories, designs, setCategories, setDesigns, notify }: { categories: string[]; designs: Design[]; setCategories: React.Dispatch<React.SetStateAction<string[]>>; setDesigns: React.Dispatch<React.SetStateAction<Design[]>>; notify: (m: string, t?: Toast["type"]) => void }) {

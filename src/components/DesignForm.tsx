@@ -9,7 +9,7 @@ export default function DesignForm({ design, categories, onSave, onCancel }: { d
   const [title, setTitle] = useState(design?.title || "");
   const [description, setDescription] = useState(design?.description || "");
   const [category, setCategory] = useState(design?.category || categories[0] || "Other");
-  const [tags, setTags] = useState(design?.tags.join(", ") || "");
+  const [tags, setTags] = useState(design?.tags ? design.tags.join(", ") : "");
   const [status, setStatus] = useState<DesignStatus>(design?.status || "Draft");
   const [date, setDate] = useState(design?.date || new Date().toISOString().slice(0, 10));
   const [isPublic, setIsPublic] = useState(design?.public ?? false);

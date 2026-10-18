@@ -9,7 +9,7 @@ export default function Navbar({ settings, search, setSearch, onMenu, onTheme }:
     <div className="top-actions">
       <button onClick={onTheme} aria-label="Toggle theme"><i className={`bi bi-${settings.theme === "dark" ? "sun" : "moon-stars"}`} /></button>
       <button className="notification" aria-label="Notifications" onClick={() => alert("You're all caught up.")}><i className="bi bi-bell" /><span /></button>
-      <div className="profile-chip">{avatar ? <img src={avatar} alt="Profile" /> : <span>{settings.name.split(" ").map(x => x[0]).slice(0,2).join("")}</span>}<div><strong>{settings.name}</strong><small>Graphic Designer</small></div></div>
+      <div className="profile-chip">{avatar ? <img src={avatar} alt="Profile" /> : <span>{(settings.name || "Designer").split(" ").filter(Boolean).map(x => x[0]).slice(0,2).join("") || "D"}</span>}<div><strong>{settings.name || "Designer"}</strong><small>Graphic Designer</small></div></div>
     </div>
   </header>;
 }
